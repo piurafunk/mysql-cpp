@@ -1,0 +1,17 @@
+manifest = "51e04926fc5c0551c62dbf165d06536821a74fc69e24e1217c878fafa333f4e8"
+
+[[dependency]]
+package = "github.com/buckaroo-pm/openssl"
+target = "//:openssl"
+
+[[dependency]]
+package = "github.com/piurafunk/catch2"
+target = "//:catch"
+
+[lock."github.com/buckaroo-pm/openssl"]
+versions = [ "branch=buck/1.0.2p" ]
+revision = "1f1935327083eabb14370b43049f37839975c36f"
+
+[lock."github.com/piurafunk/catch2"]
+versions = [ "2.7.3" ]
+revision = "2755a389211aabace70a4f80bda5fe3af071e890"

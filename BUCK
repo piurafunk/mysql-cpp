@@ -1,0 +1,61 @@
+load('//:buckaroo_macros.bzl', 'buckaroo_deps')
+
+prebuilt_cxx_library(
+  name = 'pthread',
+  header_only = True,
+  exported_linker_flags = [
+    '-lpthread'
+  ]
+)
+
+cxx_library(
+  name = 'mysql-cpp', 
+  header_namespace = 'MysqlCpp', 
+  exported_headers = subdir_glob([
+    ('include', '**/*.hpp'),
+    ('include', '**/*.h'),
+  ]), 
+  headers = subdir_glob([
+    ('private_include', '**/*.hpp'),
+    ('private_include', '**/*.h'),
+  ]),
+  srcs = glob([
+    'src/**/*.cpp',
+  ]),
+  deps = buckaroo_deps() + [
+    '//:pthread',
+    ],
+  visibility = [
+    'PUBLIC', 
+  ],
+  compiler_flags = [
+    '-ggdb'
+  ]
+)
+
+cxx_binary(
+  name = 'app', 
+  srcs = [
+    'main.cpp', 
+  ], 
+  deps = [
+    '//:mysql-cpp',
+  ],
+  compiler_flags = [
+    '-ggdb'
+  ]
+)
+
+# Tests
+cxx_binary(
+  name = 'test',
+  srcs = glob([
+    'test/**/*.cpp',
+  ]),
+  deps = [
+    '//:mysql-cpp',
+  ],
+  compiler_flags = [
+    '-ggdb'
+  ]
+)

@@ -1,0 +1,12 @@
+[project]
+  ignore = .git
+
+[cxx]
+  should_remap_host_platform = true
+  cxxflags = -std=c++2a
+  cc = /usr/bin/gcc-9
+  cpp = /usr/bin/gcc-9
+  cxxpp = /usr/bin/g++-9
+  cxx = /usr/bin/g++-9
+  ld = /usr/bin/g++-9
+  
