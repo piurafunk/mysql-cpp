@@ -29,8 +29,16 @@ cxx_library(
     'PUBLIC', 
   ],
   compiler_flags = [
-    '-ggdb'
-  ]
+    '-ggdb',
+    '-O0',
+    '-fprofile-arcs',
+    '-ftest-coverage',
+    '-fPIC',
+  ],
+  linker_flags = [
+    '-lgcov',
+    '--coverage',
+  ],
 )
 
 cxx_binary(
@@ -56,6 +64,14 @@ cxx_binary(
     '//:mysql-cpp',
   ],
   compiler_flags = [
-    '-ggdb'
-  ]
+    '-ggdb',
+    '-O0',
+    '-fprofile-arcs',
+    '-ftest-coverage',
+    '-fPIC',
+  ],
+  linker_flags = [
+    '-lgcov',
+    '--coverage',
+  ],
 )

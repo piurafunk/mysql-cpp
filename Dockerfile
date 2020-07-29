@@ -1,21 +1,18 @@
 FROM    piurafunk/utility-git as watchman-src
 RUN     git clone --depth 1 --branch v4.9.0 https://github.com/facebook/watchman.git /watchman
 
-FROM    ubuntu:18.04 as build
+FROM    ubuntu:20.04 as build
 
 RUN     apt-get update && apt-get install -y \
             software-properties-common && \
         rm -rf /var/lib/apt/lists/*
 
-RUN     add-apt-repository -y ppa:jonathonf/gcc-9.1
-
 ## Setup for Watchman
 RUN     apt update -y && apt install -y software-properties-common && rm -rf /var/lib/apt/lists/*
-RUN     add-apt-repository ppa:jonathonf/gcc-9.1
 RUN     apt-get update && apt-get install -y \
             autoconf \
             automake \
-            g++-9 \
+            g++ \
             gdbserver \
             libssl-dev \
             libtool \
@@ -42,9 +39,14 @@ RUN     wget https://github.com/njlr/buck-warp/releases/download/v0.3.0/buck-201
 ## Setup for Buckaroo
 RUN     apt-get update && apt-get install -y \
             git \
-            libssl1.0.0 && \
+            libssl1.1 && \
         rm -rf /var/lib/apt/lists/*
 
 ## Install Buckaroo
 RUN	    wget https://github.com/LoopPerfect/buckaroo/releases/download/v2.2.0/buckaroo-linux -O /bin/buckaroo && \
 	    chmod +x /bin/buckaroo
+
+## Install code coverage tools
+RUN     apt-get update && apt-get install -y \
+                lcov && \
+        rm -rf /var/lib/apt/lists/*
