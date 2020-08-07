@@ -9,6 +9,7 @@
 #include <MysqlCpp/Support/Packet.hpp>
 
 #include <openssl/err.h>
+#include <openssl/rsa.h>
 #include <openssl/sha.h>
 
 #include <stdio.h>
@@ -142,7 +143,22 @@ std::shared_ptr<Response> Connection::connect()
                 std::cout << "Got \"End of Transmission\" signal from server. This probably means we need to do full authentication." << std::endl
                           << std::endl;
 
-                this->authResponse = {1};
+                // Request server public key. Docs say to use 0x01, however 0x02 is what actually needs to be sent (discovered via packet sniffing)
+                // https://dev.mysql.com/doc/internals/en/public-key-retrieval.html
+                Packet packet;
+                packet.write(0x2, 1);
+                this->write(packet);
+
+                // Read the server's public key.
+                // TODO: Have a way to offer this for end-users to cache it. Maybe std::functional could do it
+                // TODO: Allow the public key in the constructor, so we can skip asking for it at all
+                this->parser = std::make_shared<BufferParser>(this->readPackets());
+                authMoreData = dynamic_pointer_cast<MysqlCpp::Responses::AuthMoreData>(Response::build(*this->parser, this));
+
+                // Extract the public key from the response
+                std::string publicKey = authMoreData->getData();
+
+
                 break;
             }
             default:
@@ -294,6 +310,7 @@ void Connection::exchangeSsl()
 
 void Connection::sendHandshakeResponse()
 {
+    std::cout << "Sending handshake response" << std::endl;
     Packet packet;
     packet.write(this->clientCapabilities & this->serverCapabilities, 4); // Capabilities
     packet.write(0xFFFFFFFF, 4);                                          // Max packet size
@@ -306,7 +323,7 @@ void Connection::sendHandshakeResponse()
         this->authResponse = this->generateSha2AuthResponse(this->password, this->authPluginData);
     }
 
-    // Auth response, usually the caching_sha_2 response
+    // Auth response, usually the caching_sha2_password response
     if (this->capable(Connection::Capabilities::CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA))
     {
         packet.writeLengthEncoded(this->authResponse); // Write length encoded auth response
@@ -314,7 +331,7 @@ void Connection::sendHandshakeResponse()
     else
     {
         packet.write(this->authResponse.length(), 1); // Write length of auth response as int<1>
-        packet.write(this->authResponse);             // Write auth response
+        packet.write(this->authResponse); // Write auth response
     }
 
     if (this->capable(Connection::Capabilities::CLIENT_CONNECT_WITH_DB))
@@ -491,6 +508,41 @@ std::string Connection::generateSha2AuthResponse(std::string password, std::stri
     }
 
     return std::string((char *)result, SHA256_DIGEST_LENGTH);
+}
+
+std::string Connection::rsaEncryptPassword(std::string password,std::string publicKey)
+{
+    // Set up the RSA structs
+    unsigned char encryptedPassword[4096];
+    RSA *rsa = nullptr;
+
+    BIO *keyBio  = BIO_new_mem_buf(publicKey.c_str(), publicKey.length());
+    if (keyBio == nullptr)
+    {
+        ERR_print_errors_fp(stderr);
+        throw "Failed to create key BIO";
+    }
+
+    // Load the RSA structure
+    rsa = PEM_read_bio_RSA_PUBKEY(keyBio, &rsa, NULL, NULL);
+    if (rsa == nullptr)
+    {
+        ERR_print_errors_fp(stderr);
+        throw "Failed to read RSA public key";
+    }
+
+    std::cout << "Before RSA_size()" << std::endl;
+    RSA_size(rsa);
+    std::cout << "Before RSA encrypt" << std::endl;
+    // Encrypt the password
+    auto size = RSA_public_encrypt(password.length(), (unsigned char*)password.c_str(), encryptedPassword, rsa, RSA_PKCS1_OAEP_PADDING);
+    std::cout << "After RSA encrypt" << std::endl;
+
+    // Free up the RSA structs
+    RSA_free(rsa);
+    BIO_free(keyBio);
+
+    return std::string(reinterpret_cast<char*>(encryptedPassword), 4096);
 }
 
 void Connection::setStatus(unsigned int status)

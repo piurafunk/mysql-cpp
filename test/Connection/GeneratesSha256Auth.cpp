@@ -23,8 +23,6 @@ TEST_CASE("Connector can generate SHA 256 hashes", "[connection-auth]")
 
         std::string authResponse = connection->generateSha2AuthResponse(password, salt);
 
-        std::cout << "Auth response: " << HexString(authResponse) << std::endl;
-
         REQUIRE(authResponse == expected);
     }
 }
