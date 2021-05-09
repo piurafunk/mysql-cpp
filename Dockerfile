@@ -1,52 +1,74 @@
 FROM    piurafunk/utility-git as watchman-src
 RUN     git clone --depth 1 --branch v4.9.0 https://github.com/facebook/watchman.git /watchman
 
+FROM    ubuntu:20.04 as watchman-build
+ENV     DEBIAN_FRONTEND=noninteractive
+COPY    --from=watchman-src /watchman /watchman
+RUN     apt-get update && apt-get install -y \
+                autoconf \
+                automake \
+                g++ \
+                libssl-dev \
+                libtool \
+                make \
+                openjdk-8-jre-headless \
+                pkg-config \
+                python2.7-dev \
+                python-setuptools
+RUN     cd /watchman && ./autogen.sh && ./configure --enable-lenient && make -j `nproc` && make install
+
+FROM    piurafunk/utility-git as buck-src
+RUN     git clone --depth 1 https://github.com/facebook/buck.git -b v2019.01.10.01 /buck
+
+FROM    ubuntu:20.04 as buck-build
+ENV     DEBIAN_FRONTEND=noninteractive
+RUN     apt-get update && apt-get install -y \
+                ant \
+                git \
+                openjdk-8-jdk-headless \
+                python2.7 && \
+        apt-get purge -y openjdk-11-jre-headless && \
+        ln -s /usr/bin/python2.7 /usr/bin/python
+COPY    --from=buck-src /buck /buck
+RUN     cd /buck && ant && ./bin/buck build --show-output buck && cp buck-out/gen/programs/buck.pex /bin/buck
+
+FROM    piurafunk/utility-git as buckaroo-src
+RUN     git clone https://github.com/LoopPerfect/buckaroo.git /buckaroo && cd /buckaroo && git checkout f95792c47b3f4e6b4ed9ca121071422c88498908
+
+FROM    mcr.microsoft.com/dotnet/sdk:5.0 as buckaroo-build
+ENV     DEBIAN_FRONTEND=noninteractive
+COPY    --from=buckaroo-src /buckaroo /buckaroo
+RUN     cd /buckaroo && dotnet build ./buckaroo && dotnet build ./buckaroo-cli && ./warp-bundle-linux.sh
+
+
 FROM    ubuntu:20.04 as build
 
+ENV     DEBIAN_FRONTEND=noninteractive
 RUN     apt-get update && apt-get install -y \
-            software-properties-common && \
-        rm -rf /var/lib/apt/lists/*
-
+## Setup for general use
+                gdbserver \
 ## Setup for Watchman
-RUN     apt update -y && apt install -y software-properties-common && rm -rf /var/lib/apt/lists/*
-RUN     apt-get update && apt-get install -y \
-            autoconf \
-            automake \
-            g++ \
-            gdbserver \
-            libssl-dev \
-            libtool \
-            make \
-            pkg-config \
-            python2.7-dev \
-            python-setuptools \
-            sudo && \
-	    rm -rf /var/lib/apt/lists/*
+                python2.7 \
+## Setup for Buckaroo
+                git \
+## Setup for Buck
+                openjdk-8-jre-headless \
+## Install for code coverage tools
+                lcov \
+## Project specific things. TODO: Move this into separate Docker image and extend from it.
+                g++ \
+                make && \
+	rm -rf /var/lib/apt/lists/*
 
 ## Install Watchman
-COPY    --from=watchman-src /watchman /watchman
-RUN     cd /watchman && ./autogen.sh && ./configure --enable-lenient && make -j `nproc` && make install && rm -r /watchman
-
-## Setup for Buck
-RUN     apt-get update && apt-get install -y \
-	        wget && \
-	    rm -rf /var/lib/apt/lists/*
+COPY    --from=watchman-build /usr/local/bin/watchman* /usr/local/bin
+COPY    --from=watchman-build /usr/local/lib/python2.7/site-packages /usr/local/lib/python2.7
+COPY    --from=watchman-build /usr/local/share/doc/watchman-4.9.0 /usr/local/share/doc
+COPY    --from=watchman-build /usr/local/var/run/watchman /usr/local/var/run/watchman
 
 ## Install Buck
-RUN     wget https://github.com/njlr/buck-warp/releases/download/v0.3.0/buck-2019.01.10.01-linux -O /bin/buck && \
-        chmod +x /bin/buck
-
-## Setup for Buckaroo
-RUN     apt-get update && apt-get install -y \
-            git \
-            libssl1.1 && \
-        rm -rf /var/lib/apt/lists/*
+COPY    --from=buck-build /bin/buck /bin/buck
+RUN     ln -s /usr/bin/python2.7 /usr/bin/python
 
 ## Install Buckaroo
-RUN	    wget https://github.com/LoopPerfect/buckaroo/releases/download/v2.2.0/buckaroo-linux -O /bin/buckaroo && \
-	    chmod +x /bin/buckaroo
-
-## Install code coverage tools
-RUN     apt-get update && apt-get install -y \
-                lcov && \
-        rm -rf /var/lib/apt/lists/*
+COPY    --from=buckaroo-build /buckaroo/warp/buckaroo-linux /bin/buckaroo
