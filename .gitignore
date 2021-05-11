@@ -4,8 +4,11 @@ buck-out
 .buckconfig.d
 buckaroo
 buckaroo_macros.bzl
-.vscode
 
 # Code coverage files
 *.gcda
 *.gcno
+
+# Dunno why these file exist
+# Pretty sure this is related to the MS C++ extension. No hard evidence though
+null.d

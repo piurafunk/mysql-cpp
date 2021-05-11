@@ -1,0 +1,9 @@
+{
+    "configurations": [
+        {
+            "name": "mysql-cpp",
+            "compileCommands": "${workspaceFolder}/buck-out/gen/compilation-commands/compile_commands.json"
+        }
+    ],
+    "version": 4
+}

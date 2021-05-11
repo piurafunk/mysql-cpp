@@ -105,10 +105,10 @@ std::shared_ptr<Response> Connection::connect()
         this->parser = std::make_shared<BufferParser>(this->readPackets());
         response = Response::build(*this->parser, this);
 
-        auto errResponse = dynamic_pointer_cast<MysqlCpp::Responses::Error>(response);
-        auto okResponse = dynamic_pointer_cast<MysqlCpp::Responses::Ok>(response);
-        auto authSwitchRequestResponse = dynamic_pointer_cast<MysqlCpp::Responses::AuthSwitchRequest>(response);
-        auto authMoreData = dynamic_pointer_cast<MysqlCpp::Responses::AuthMoreData>(response);
+        auto errResponse = std::dynamic_pointer_cast<MysqlCpp::Responses::Error>(response);
+        auto okResponse = std::dynamic_pointer_cast<MysqlCpp::Responses::Ok>(response);
+        auto authSwitchRequestResponse = std::dynamic_pointer_cast<MysqlCpp::Responses::AuthSwitchRequest>(response);
+        auto authMoreData = std::dynamic_pointer_cast<MysqlCpp::Responses::AuthMoreData>(response);
 
         if (errResponse)
         {
@@ -153,7 +153,7 @@ std::shared_ptr<Response> Connection::connect()
                 // TODO: Have a way to offer this for end-users to cache it. Maybe std::functional could do it
                 // TODO: Allow the public key in the constructor, so we can skip asking for it at all
                 this->parser = std::make_shared<BufferParser>(this->readPackets());
-                authMoreData = dynamic_pointer_cast<MysqlCpp::Responses::AuthMoreData>(Response::build(*this->parser, this));
+                authMoreData = std::dynamic_pointer_cast<MysqlCpp::Responses::AuthMoreData>(Response::build(*this->parser, this));
 
                 // Extract the public key from the response
                 std::string publicKey = authMoreData->getData();

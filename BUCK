@@ -75,3 +75,11 @@ cxx_binary(
     '--coverage',
   ],
 )
+
+# Compilation commands
+
+genrule(
+  name = "compilation-commands",
+  bash = "cat $(location :test#compilation-database) $(location :mysql-cpp#compilation-database) | jq -s add > $OUT",
+  out = "compile_commands.json",
+)

@@ -47,6 +47,7 @@ ENV     DEBIAN_FRONTEND=noninteractive
 RUN     apt-get update && apt-get install -y \
 ## Setup for general use
                 gdbserver \
+                jq \
 ## Setup for Watchman
                 python2.7 \
 ## Setup for Buckaroo
@@ -72,3 +73,9 @@ RUN     ln -s /usr/bin/python2.7 /usr/bin/python
 
 ## Install Buckaroo
 COPY    --from=buckaroo-build /buckaroo/warp/buckaroo-linux /bin/buckaroo
+
+ARG     USER_ID=1000 GROUP_ID=1000 USERNAME=user
+RUN     groupadd --gid $GROUP_ID $USERNAME
+RUN     useradd --create-home --home-dir /home/$USERNAME --uid $USER_ID --gid $GROUP_ID $USERNAME
+RUN     chown -R $USER_ID:$GROUP_ID /usr/local/var/run/watchman
+USER    $USER_ID:$GROUP_ID
