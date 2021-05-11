@@ -1,6 +1,7 @@
 #include <MysqlCpp/Support/BufferParser.hpp>
 
 #include <bitset>
+#include <iostream>
 
 namespace MysqlCpp::Support
 {
@@ -86,7 +87,7 @@ unsigned long BufferParser::lengthEncodedULong(unsigned int &i) const
 std::string BufferParser::string(unsigned int &i, const unsigned int size, bool nullTerminated) const
 {
     std::string result;
-    if (size == 0) // Null terminated strings
+    if (size == 0 && nullTerminated) // Null terminated strings
     {
         result = std::string(&this->buffer.at(i));
 
@@ -111,8 +112,9 @@ std::string BufferParser::lengthEncodedString()
 std::string BufferParser::lengthEncodedString(unsigned int &i)
 {
     auto length = this->lengthEncodedULong(i);
+    std::cout << "Parsed " << length << " as the length for the string." << std::endl;
 
-    return this->string(i, length);
+    return this->string(i, length, false);
 }
 
 std::string BufferParser::remainder()

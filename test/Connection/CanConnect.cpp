@@ -36,7 +36,7 @@ TEST_CASE("Connector can communicate", "[connection]")
         REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(createDatabaseResponse) == true);
 
         // Select database
-        std::cout << "Beginning select database" << std::endl;
+        std::cout << "Beginning select database (after create)" << std::endl;
         auto selectDatabaseResponse = connection->selectDatabase("test_database");
         REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(selectDatabaseResponse) == true);
     }
@@ -44,7 +44,7 @@ TEST_CASE("Connector can communicate", "[connection]")
     SECTION("show tables")
     {
         // Select database
-        std::cout << "Beginning select database" << std::endl;
+        std::cout << "Beginning select database (for show tables)" << std::endl;
         auto selectDatabaseResponse = connection->selectDatabase("test_database");
         REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(selectDatabaseResponse) == true);
 
@@ -59,7 +59,7 @@ TEST_CASE("Connector can communicate", "[connection]")
     SECTION("create table")
     {
         // Select database
-        std::cout << "Beginning select database" << std::endl;
+        std::cout << "Beginning select database (for create table)" << std::endl;
         auto selectDatabaseResponse = connection->selectDatabase("test_database");
         REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(selectDatabaseResponse) == true);
 

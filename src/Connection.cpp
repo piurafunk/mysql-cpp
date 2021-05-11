@@ -203,7 +203,10 @@ void Connection::receiveInitialHandshake()
 
     if (protocolVersion != 10)
     {
-        throw "Protocol version not compatible.";
+        this->parser->seek(0);
+        std::shared_ptr<Response> error = std::make_shared<Error>(*this->parser, this);
+        std::cout << error << std::endl;
+        throw std::string("Protocol version not compatible. (").append(std::to_string(protocolVersion)).append(")");
     }
 
     // Extract human readable status

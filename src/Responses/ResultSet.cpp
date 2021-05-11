@@ -22,15 +22,15 @@ namespace MysqlCpp::Responses
 
 ResultSet::ResultSet(MysqlCpp::Support::BufferParser &parser, MysqlCpp::Connection *connection)
 {
-    std::cout << "Data:" << std::endl
+    std::cout << "Default packet data:" << std::endl
               << parser << std::endl;
+    this->columnCount = parser.lengthEncodedULong();
     if (connection->capable(Connection::Capabilities::CLIENT_OPTIONAL_RESULTSET_METADATA))
     {
         std::cout << "Checking for metadata flag" << std::endl;
         this->metadataPresent = (parser.uInt<1>() > 0);
     }
 
-    this->columnCount = parser.lengthEncodedULong();
     std::cout << "Column count: " << this->columnCount << std::endl;
 
     if (!connection->capable(Connection::Capabilities::CLIENT_OPTIONAL_RESULTSET_METADATA) || this->metadataPresent)
@@ -41,6 +41,7 @@ ResultSet::ResultSet(MysqlCpp::Support::BufferParser &parser, MysqlCpp::Connecti
         for (unsigned int i = 0; i < this->columnCount; i++)
         {
             parser = BufferParser(connection->readPackets());
+            std::cout << "Column definition data: " << std::endl << parser << std::endl;
 
             std::cout << "Building column definition " << i << std::endl;
             this->columnDefinitions[i] = std::make_shared<ColumnDefinition>(parser, connection);

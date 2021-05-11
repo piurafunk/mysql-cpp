@@ -17,14 +17,23 @@ ColumnDefinition::ColumnDefinition(BufferParser &parser, Connection *connection)
         this->schema = parser.lengthEncodedString();
         std::cout << "Parsing table" << std::endl;
         this->table = parser.lengthEncodedString();
+        std::cout << "Parsing orgTable" << std::endl;
         this->orgTable = parser.lengthEncodedString();
+        std::cout << "Parsing name" << std::endl;
         this->name = parser.lengthEncodedString();
+        std::cout << "Parsing orgName" << std::endl;
         this->orgName = parser.lengthEncodedString();
+        std::cout << "Parsing length" << std::endl;
         this->length = parser.lengthEncodedULong();
+        std::cout << "Parsing characterSet" << std::endl;
         this->characterSet = parser.uInt<2>();
+        std::cout << "Parsing columnLength" << std::endl;
         this->columnLength = parser.uInt<4>();
+        std::cout << "Parsing type" << std::endl;
         this->type = parser.uInt<1>();
+        std::cout << "Parsing flags" << std::endl;
         this->flags = parser.uInt<2>();
+        std::cout << "Parsing decimals" << std::endl;
         this->decimals = parser.uInt<1>();
     }
     else
