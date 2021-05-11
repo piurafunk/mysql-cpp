@@ -112,7 +112,8 @@ public:
     std::shared_ptr<MysqlCpp::Responses::Response> createTable(std::string);
 
     std::string generateSha2AuthResponse(std::string, std::string);
-    std::string rsaEncryptPassword(std::string, std::string);
+    std::vector<std::byte> rsaEncryptPassword(std::vector<std::byte>, std::string);
+    std::vector<std::byte> rsaDecryptPassword(std::vector<std::byte>, std::string);
     void setDatabase(std::string);
 
     // Socket access

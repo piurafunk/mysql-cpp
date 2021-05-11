@@ -56,7 +56,10 @@
         "variant": "cpp",
         "cinttypes": "cpp",
         "any": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "bit": "cpp",
+        "condition_variable": "cpp",
+        "shared_mutex": "cpp"
     },
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true,

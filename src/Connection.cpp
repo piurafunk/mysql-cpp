@@ -24,6 +24,7 @@
 #include <iomanip>
 #include <iostream>
 #include <bitset>
+#include <string>
 
 using MysqlCpp::Responses::AuthMoreData;
 using MysqlCpp::Responses::AuthSwitchRequest;
@@ -510,10 +511,10 @@ std::string Connection::generateSha2AuthResponse(std::string password, std::stri
     return std::string((char *)result, SHA256_DIGEST_LENGTH);
 }
 
-std::string Connection::rsaEncryptPassword(std::string password,std::string publicKey)
+std::vector<std::byte> Connection::rsaEncryptPassword(std::vector<std::byte> password, std::string publicKey)
 {
     // Set up the RSA structs
-    unsigned char encryptedPassword[4096];
+    std::vector<std::byte> encryptedPassword;
     RSA *rsa = nullptr;
 
     BIO *keyBio  = BIO_new_mem_buf(publicKey.c_str(), publicKey.length());
@@ -531,18 +532,52 @@ std::string Connection::rsaEncryptPassword(std::string password,std::string publ
         throw "Failed to read RSA public key";
     }
 
-    std::cout << "Before RSA_size()" << std::endl;
-    RSA_size(rsa);
-    std::cout << "Before RSA encrypt" << std::endl;
+    int size = RSA_size(rsa);
+    encryptedPassword.resize(size);
     // Encrypt the password
-    auto size = RSA_public_encrypt(password.length(), (unsigned char*)password.c_str(), encryptedPassword, rsa, RSA_PKCS1_OAEP_PADDING);
-    std::cout << "After RSA encrypt" << std::endl;
+    RSA_public_encrypt(password.size(), reinterpret_cast<unsigned char*>(password.data()), reinterpret_cast<unsigned char*>(encryptedPassword.data()), rsa, RSA_PKCS1_OAEP_PADDING);
 
     // Free up the RSA structs
     RSA_free(rsa);
     BIO_free(keyBio);
 
-    return std::string(reinterpret_cast<char*>(encryptedPassword), 4096);
+    return encryptedPassword;
+}
+
+std::vector<std::byte> Connection::rsaDecryptPassword(std::vector<std::byte> string, std::string privateKey)
+{
+    // Set up the RSA structs
+    RSA *rsa = nullptr;
+
+    BIO *keyBio  = BIO_new_mem_buf(privateKey.c_str(), privateKey.length());
+    if (keyBio == nullptr)
+    {
+        ERR_print_errors_fp(stderr);
+        throw "Failed to create key BIO";
+    }
+
+    // Load the RSA structure
+    rsa = PEM_read_bio_RSAPrivateKey(keyBio, &rsa, NULL, NULL);
+    if (rsa == nullptr)
+    {
+        ERR_print_errors_fp(stderr);
+        throw "Failed to read RSA private key";
+    }
+
+    std::vector<std::byte> decrypted(RSA_size(rsa));
+    int size = RSA_private_decrypt(RSA_size(rsa), reinterpret_cast<unsigned char*>(string.data()), reinterpret_cast<unsigned char*>(decrypted.data()), rsa, RSA_PKCS1_OAEP_PADDING);
+
+    if (size < 0) {
+        ERR_load_crypto_strings();
+        while (auto errorCode = ERR_get_error()) {
+            std::cout << "Error message: " << ERR_error_string(errorCode, nullptr) << std::endl;
+        }
+    }
+    decrypted.resize(size);
+    RSA_free(rsa);
+    BIO_free(keyBio);
+
+    return decrypted;
 }
 
 void Connection::setStatus(unsigned int status)
