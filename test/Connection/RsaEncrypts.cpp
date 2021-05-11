@@ -19,8 +19,10 @@ TEST_CASE("Connector can RSA encrypt and decrypt a password", "[connection-rsa]"
     // Tests
     SECTION("Password: password")
     {
-        // password is "password"
-        std::vector<std::byte> password{std::byte(0x70), std::byte(0x61), std::byte(0x73), std::byte(0x73), std::byte(0x77), std::byte(0x6f), std::byte(0x72), std::byte(0x64)};
+        std::string passwordString = "password";
+        std::vector<std::byte> password(passwordString.size());
+        std::transform(passwordString.begin(), passwordString.end(), password.begin(), [](char c) { return std::byte(c); });
+
         std::string publicKey = "-----BEGIN PUBLIC KEY-----\n"
                                 "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEApGgCbvNlZx31DlAafHXv\n"
                                 "vDrBpnwRJLNAtyOZWf7bUJ/ViS1FSIDewfgu1AERdZaHiotGCfR310AcZQwPH3ki\n"
