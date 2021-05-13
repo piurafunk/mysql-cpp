@@ -5,42 +5,58 @@
 
 using MysqlCpp::Support::BufferParser;
 
-TEST_CASE("BufferParser knows when it has next", "[Support/BufferParser - hasNext]")
+SCENARIO("BufferParser knows when it has next", "[Support/BufferParser - hasNext]")
 {
-    auto parser = std::make_shared<BufferParser>(std::vector<char>({0b1, 0b10, 0b11, 0b100}));
-
-    SECTION("cursor = 0")
+    GIVEN("A simple integer buffer containing 4 bytes")
     {
-        REQUIRE(parser->hasNext() == true);
-    }
+        auto parser = std::make_shared<BufferParser>(std::vector<char>({0b1, 0b10, 0b11, 0b100}));
 
-    SECTION("cursor = 1")
-    {
-        parser->uInt<1>();
-        REQUIRE(parser->hasNext() == true);
-    }
+        WHEN("The cursor is at 0")
+        {
+            THEN("The buffer returns true for hasNext()")
+            {
+                REQUIRE(parser->hasNext() == true);
+            }
+        }
 
-    SECTION("cursor = 2")
-    {
-        parser->uInt<1>();
-        parser->uInt<1>();
-        REQUIRE(parser->hasNext() == true);
-    }
+        WHEN("The cursor is at 1")
+        {
+            parser->uInt<1>();
 
-    SECTION("cursor = 3")
-    {
-        parser->uInt<1>();
-        parser->uInt<1>();
-        parser->uInt<1>();
-        REQUIRE(parser->hasNext() == true);
-    }
+            THEN("The buffer returns true for hasNext()")
+            {
+                REQUIRE(parser->hasNext() == true);
+            }
+        }
 
-    SECTION("cursor = 4")
-    {
-        parser->uInt<1>();
-        parser->uInt<1>();
-        parser->uInt<1>();
-        parser->uInt<1>();
-        REQUIRE(parser->hasNext() == false);
+        WHEN("The cursor is at 2")
+        {
+            parser->uInt<2>();
+
+            THEN("The buffer returns true for hasNext()")
+            {
+                REQUIRE(parser->hasNext() == true);
+            }
+        }
+
+        WHEN("The cursor is at 3")
+        {
+            parser->uInt<3>();
+
+            THEN("The buffer returns true for hasNext()")
+            {
+                REQUIRE(parser->hasNext() == true);
+            }
+        }
+
+        WHEN("The cursor is at 4")
+        {
+            parser->uInt<4>();
+
+            THEN("The buffer returns false for hasNext()")
+            {
+                REQUIRE(parser->hasNext() == false);
+            }
+        }
     }
 }

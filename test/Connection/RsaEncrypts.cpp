@@ -6,23 +6,10 @@
 
 using namespace std::string_literals;
 
-TEST_CASE("Connector can RSA encrypt and decrypt a password", "[connection-rsa]")
+SCENARIO("Connector can RSA encrypt and decrypt a password", "[connection-rsa]")
 {
-    const std::string hostname = "mysql";
-    const unsigned int port = 3306;
-    const std::string username = "user";
-    const std::string password = "password";
-    const std::string database = "test_database";
-
-    auto connection = std::make_shared<MysqlCpp::Connection>(hostname, port, username, password, false);
-
-    // Tests
-    SECTION("Password: password")
+    GIVEN("A public and private key pair")
     {
-        std::string passwordString = "password";
-        std::vector<std::byte> password(passwordString.size());
-        std::transform(passwordString.begin(), passwordString.end(), password.begin(), [](char c) { return std::byte(c); });
-
         std::string publicKey = "-----BEGIN PUBLIC KEY-----\n"
                                 "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEApGgCbvNlZx31DlAafHXv\n"
                                 "vDrBpnwRJLNAtyOZWf7bUJ/ViS1FSIDewfgu1AERdZaHiotGCfR310AcZQwPH3ki\n"
@@ -90,9 +77,22 @@ TEST_CASE("Connector can RSA encrypt and decrypt a password", "[connection-rsa]"
                                  "wmURmhR2aqW2JXEKxxC3u7wor0efEsM=\n"
                                  "-----END RSA PRIVATE KEY-----";
 
-        auto encrypted = connection->rsaEncryptPassword(password, publicKey);
-        auto decrypted = connection->rsaDecryptPassword(encrypted, privateKey);
+        auto connection = std::make_shared<MysqlCpp::Connection>("", 0, "", "");
 
-        REQUIRE(password == decrypted);
+        // Tests
+        WHEN("Encrypting and decrypting the text \"password\"")
+        {
+            std::string passwordString = "password";
+            std::vector<std::byte> password(passwordString.size());
+            std::transform(passwordString.begin(), passwordString.end(), password.begin(), [](char c) { return std::byte(c); });
+
+            auto encrypted = connection->rsaEncryptPassword(password, publicKey);
+            auto decrypted = connection->rsaDecryptPassword(encrypted, privateKey);
+
+            THEN("The original std::vector<std::byte> matches the encrypted/decrypted std::vector<std::byte>")
+            {
+                REQUIRE(password == decrypted);
+            }
+        }
     }
 }

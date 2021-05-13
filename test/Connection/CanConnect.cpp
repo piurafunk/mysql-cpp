@@ -8,77 +8,108 @@
 
 #include <iostream>
 
-TEST_CASE("Connector can communicate", "[connection]")
+SCENARIO("Connector can communicate", "[connection]")
 {
-    // Consts to confirm equality
-    const std::string hostname = "mysql";
-    const unsigned int port = 3306;
-    const std::string username = "user";
-    const std::string password = "password";
-    const std::string database = "test_database";
-
-    // Tests
-    auto connection = std::make_shared<MysqlCpp::Connection>(hostname, port, username, password, false);
-    std::cout << "Beginning connection" << std::endl;
-    auto result = connection->connect();
-
-    REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(result) == true);
-
-    std::cout << "Pinging" << std::endl;
-    result = connection->ping();
-    REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(result) == true);
-
-    SECTION("select database")
+    GIVEN("A connection with valid details")
     {
-        // Create database
-        std::cout << "Beginning create database" << std::endl;
-        auto createDatabaseResponse = connection->query("CREATE DATABASE `test_database`");
-        REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(createDatabaseResponse) == true);
+        // Consts to confirm equality
+        const std::string hostname = "mysql";
+        const unsigned int port = 3306;
+        const std::string username = "user";
+        const std::string password = "password";
+        const std::string database = "test_database";
 
-        // Select database
-        std::cout << "Beginning select database (after create)" << std::endl;
-        auto selectDatabaseResponse = connection->selectDatabase("test_database");
-        REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(selectDatabaseResponse) == true);
+        auto connection = std::make_shared<MysqlCpp::Connection>(hostname, port, username, password, false);
+        auto result = connection->connect();
+
+        WHEN("Connected")
+        {
+            THEN("The response is an instance of MysqlCpp::Responses::Ok")
+            {
+                REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(result) == true);
+            }
+        }
+
+        WHEN("Pinging")
+        {
+            result = connection->ping();
+
+            THEN("The response is an instance of MysqlCpp::Responses::Ok")
+            {
+                REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(result) == true);
+            }
+        }
+
+        WHEN("Creating a database")
+        {
+            auto createDatabaseResponse = connection->query("CREATE DATABASE `test_database`");
+
+            THEN("The response is an instance of MysqlCpp::Responses::Ok")
+            {
+                REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(createDatabaseResponse) == true);
+            }
+        }
+
+        WHEN("Selecting a database")
+        {
+            auto selectDatabaseResponse = connection->selectDatabase("test_database");
+
+            THEN("The response is an instance of MysqlCpp::Responses::Ok")
+            {
+                REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(selectDatabaseResponse) == true);
+            }
+        }
+
+        WHEN("Querying \"show tables\"")
+        {
+            auto selectDatabaseResponse = connection->selectDatabase("test_database");
+            REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(selectDatabaseResponse) == true);
+
+            auto showTablesResponse = connection->showTables();
+            THEN("The response is an instance of MysqlCpp::Responses::ResultSet")
+            {
+                REQUIRE(::instanceOf<MysqlCpp::Responses::ResultSet>(showTablesResponse) == true);
+            }
+
+            auto resultSet = dynamic_pointer_cast<MysqlCpp::Responses::ResultSet>(showTablesResponse);
+
+            THEN("The result set has 0 rows")
+            {
+                REQUIRE(resultSet->getRows().size() == 0);
+            }
+        }
+
+        WHEN("Creating a table")
+        {
+            auto selectDatabaseResponse = connection->selectDatabase("test_database");
+            REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(selectDatabaseResponse) == true);
+
+            auto createTableResponse = connection->createTable("test_table");
+
+            THEN("The response is an instance of MysqlCpp::Responses::Ok")
+            {
+                REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(createTableResponse) == true);
+            }
+        }
+
+        WHEN("Dropping a database")
+        {
+            auto dropDatabaseResponse = connection->query("DROP DATABASE test_database");
+
+            THEN("The response is an instance of MysqlCpp::Responses::Ok")
+            {
+                REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(dropDatabaseResponse) == true);
+            }
+        }
+
+        WHEN("Disconnecting")
+        {
+            auto disconnectResponse = connection->disconnect();
+
+            THEN("The response is an instance of MysqlCpp::Responses::Ok")
+            {
+                REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(disconnectResponse) == true);
+            }
+        }
     }
-
-    SECTION("show tables")
-    {
-        // Select database
-        std::cout << "Beginning select database (for show tables)" << std::endl;
-        auto selectDatabaseResponse = connection->selectDatabase("test_database");
-        REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(selectDatabaseResponse) == true);
-
-        // Show tables
-        std::cout << "Beginning show tables" << std::endl;
-        auto showTablesResponse = connection->showTables();
-        REQUIRE(::instanceOf<MysqlCpp::Responses::ResultSet>(showTablesResponse) == true);
-        auto resultSet = dynamic_pointer_cast<MysqlCpp::Responses::ResultSet>(showTablesResponse);
-        REQUIRE(resultSet->getRows().size() == 0);
-    }
-
-    SECTION("create table")
-    {
-        // Select database
-        std::cout << "Beginning select database (for create table)" << std::endl;
-        auto selectDatabaseResponse = connection->selectDatabase("test_database");
-        REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(selectDatabaseResponse) == true);
-
-        // Create table
-        std::cout << "Beginning create table" << std::endl;
-        auto createTableResponse = connection->createTable("test_table");
-        REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(createTableResponse) == true);
-    }
-
-    SECTION("drop database")
-    {
-        std::cout << "Beginning drop database" << std::endl;
-        // Delete database
-        auto dropDatabaseResponse = connection->query("DROP DATABASE test_database");
-        REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(dropDatabaseResponse) == true);
-    }
-
-    std::cout << "Disconnecting" << std::endl;
-    auto disconnectResponse = connection->disconnect();
-
-    REQUIRE(::instanceOf<MysqlCpp::Responses::Ok>(disconnectResponse) == true);
 }

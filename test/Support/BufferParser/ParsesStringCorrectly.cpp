@@ -8,151 +8,220 @@
 
 using MysqlCpp::Support::BufferParser;
 
-TEST_CASE("BufferParser can parse fixed length strings", "[Support/BufferParser - FixedLengthString]")
+SCENARIO("BufferParser can parse fixed length strings", "[Support/BufferParser - FixedLengthString]")
 {
-    std::string data = "Hello World! I am here!";
-    auto parser = std::make_shared<BufferParser>(std::vector<char>(data.begin(), data.end()));
-    unsigned int i = 0;
-
-    SECTION("string<1>")
+    GIVEN("The sentence \"Hello World! I am here!\"")
     {
-        std::string result = parser->string(i, 1);
+        std::string data = "Hello World! I am here!";
+        auto parser = std::make_shared<BufferParser>(std::vector<char>(data.begin(), data.end()));
+        unsigned int i = 0;
 
-        REQUIRE(result == "H");
-    }
+        WHEN("The first byte is fetched")
+        {
+            std::string result = parser->string(i, 1);
 
-    SECTION("string<2>")
-    {
-        std::string result = parser->string(i, 2);
+            THEN("The value is 'H'")
+            {
+                REQUIRE(result == "H");
+            }
+        }
 
-        REQUIRE(result == "He");
-    }
+        WHEN("The first 2 bytes are fetched")
+        {
+            std::string result = parser->string(i, 2);
 
-    SECTION("string<3>")
-    {
-        std::string result = parser->string(i, 3);
+            THEN("The value is 'He'")
+            {
+                REQUIRE(result == "He");
+            }
+        }
 
-        REQUIRE(result == "Hel");
-    }
+        WHEN("The first 3 bytes are fetched")
+        {
+            std::string result = parser->string(i, 3);
 
-    SECTION("string<4>")
-    {
-        std::string result = parser->string(i, 4);
+            THEN("The value is 'Hel'")
+            {
+                REQUIRE(result == "Hel");
+            }
+        }
 
-        REQUIRE(result == "Hell");
-    }
+        WHEN("The first 4 bytes are fetched")
+        {
+            std::string result = parser->string(i, 4);
 
-    SECTION("string<5>")
-    {
-        std::string result = parser->string(i, 5);
+            THEN("The value is 'Hell'")
+            {
+                REQUIRE(result == "Hell");
+            }
+        }
 
-        REQUIRE(result == "Hello");
-    }
+        WHEN("The first 5 bytes are fetched")
+        {
+            std::string result = parser->string(i, 5);
 
-    SECTION("string<1> with offset")
-    {
-        i += 6;
+            THEN("The value is 'Hello'")
+            {
+                REQUIRE(result == "Hello");
+            }
+        }
 
-        std::string result = parser->string(i, 1);
+        WHEN("The first 6 are skipped, then 1 byte is pulled")
+        {
+            i += 6;
 
-        REQUIRE(result == "W");
-    }
+            std::string result = parser->string(i, 1);
 
-    SECTION("string<1> internal")
-    {
-        std::string result = parser->string<1>();
+            THEN("The value is 'W'")
+            {
+                REQUIRE(result == "W");
+            }
+        }
 
-        REQUIRE(result == "H");
-    }
+        WHEN("The first byte is fetched from the \"internal\" method")
+        {
+            std::string result = parser->string<1>();
 
-    SECTION("string<2> internal")
-    {
-        std::string result = parser->string<2>();
+            THEN("The value is 'H'")
+            {
+                REQUIRE(result == "H");
+            }
+        }
 
-        REQUIRE(result == "He");
-    }
+        WHEN("The first 2 bytes are fetched from the \"internal\" method")
+        {
+            std::string result = parser->string<2>();
 
-    SECTION("string<3> internal")
-    {
-        std::string result = parser->string<3>();
+            THEN("The value is 'He'")
+            {
+                REQUIRE(result == "He");
+            }
+        }
 
-        REQUIRE(result == "Hel");
-    }
+        WHEN("The first 3 bytes are fetched from the \"internal\" method")
+        {
+            std::string result = parser->string<3>();
 
-    SECTION("string<4> internal")
-    {
-        std::string result = parser->string<4>();
+            THEN("The value is 'Hel'")
+            {
+                REQUIRE(result == "Hel");
+            }
+        }
 
-        REQUIRE(result == "Hell");
-    }
+        WHEN("The first 4 bytes are fetched from the \"internal\" method")
+        {
+            std::string result = parser->string<4>();
 
-    SECTION("string<5> internal")
-    {
-        std::string result = parser->string<5>();
+            THEN("The value is 'Hell'")
+            {
+                REQUIRE(result == "Hell");
+            }
+        }
 
-        REQUIRE(result == "Hello");
+        WHEN("The first 5 bytes are fetched from the \"internal\" method")
+        {
+            std::string result = parser->string<5>();
+
+            THEN("The value is 'Hello'")
+            {
+                REQUIRE(result == "Hello");
+            }
+        }
     }
 }
 
-TEST_CASE("BufferParser can parse null terminated strings", "[Support/BufferParser - NullTerminatedString]")
+SCENARIO("BufferParser can parse null terminated strings", "[Support/BufferParser - NullTerminatedString]")
 {
-    std::vector<char> data = {'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd', '!', '\0', ' ', 'I', ' ', 'a', 'm', ' ', 'h', 'e', 'r', 'e', '!', '\0'};
-    auto parser = std::make_shared<BufferParser>(data);
-    unsigned int i = 0;
-
-    SECTION("string<NULL>")
+    GIVEN("A std::vector<char> with multiple null terminated strings within")
     {
-        std::string result = parser->string(i);
+        std::vector<char> data = {'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd', '!', '\0', ' ', 'I', ' ', 'a', 'm', ' ', 'h', 'e', 'r', 'e', '!', '\0'};
+        auto parser = std::make_shared<BufferParser>(data);
+        unsigned int i = 0;
 
-        REQUIRE(result == "Hello World!");
-        REQUIRE(i == 13);
+        WHEN("Fetching without specifying length")
+        {
+            std::string result = parser->string(i);
 
-        i++;
-        result = parser->string(i);
+            THEN("The string leading up to the first encountered \\0 is returned")
+            {
+                REQUIRE(result == "Hello World!");
+                REQUIRE(i == 13);
+            }
 
-        REQUIRE(result == "I am here!");
-        REQUIRE(i == 25);
-    }
+            i++;
+            result = parser->string(i);
 
-    SECTION("string<NULL> internal")
-    {
-        std::string result = parser->string<0>();
+            THEN("The string leading up to the next encountered \\0 is returned")
+            {
+                REQUIRE(result == "I am here!");
+                REQUIRE(i == 25);
+            }
+        }
 
-        REQUIRE(result == "Hello World!");
+        WHEN("Fetching without specifying length using the \"internal\" function")
+        {
+            std::string result = parser->string<0>();
 
-        parser->string<1>(); // Skip the space
-        result = parser->string<0>();
+            THEN("The string leading up to the first encountered \\0 is returned")
+            {
+                REQUIRE(result == "Hello World!");
+            }
 
-        REQUIRE(result == "I am here!");
+            parser->string<1>(); // Skip the \0
+            result = parser->string<0>();
+
+            THEN("The string leading up to the next encountered \\0 is returned")
+            {
+                REQUIRE(result == "I am here!");
+            }
+        }
     }
 }
 
-TEST_CASE("BufferParser can extract remainder of buffer", "[Support/BufferParser - Remainder]")
+SCENARIO("BufferParser can extract remainder of buffer", "[Support/BufferParser - Remainder]")
 {
-    std::string data = std::string("Hello World!\0 I am here!", 25);
-    auto parser = std::make_shared<BufferParser>(std::vector<char>(data.begin(), data.end()));
-
-    SECTION("string<remainder>")
+    GIVEN("A string with multiple null terminated strings within")
     {
-        std::string result = parser->remainder();
+        std::string data = std::string("Hello World!\0 I am here!", 25);
+        auto parser = std::make_shared<BufferParser>(std::vector<char>(data.begin(), data.end()));
 
-        REQUIRE(result == std::string("Hello World!\0 I am here!", 25));
+        WHEN("Fetching remainder")
+        {
+            std::string result = parser->remainder();
+
+            THEN("The string equals the remainder")
+            {
+                REQUIRE(result == std::string("Hello World!\0 I am here!", 25));
+            }
+        }
     }
 }
 
-TEST_CASE("std::vector<char> does size corretly", "[std::vector<char>]")
+SCENARIO("std::vector<char> does size correctly", "[std::vector<char>]")
 {
-    std::vector<char> data{1, 0, 2};
-
-    REQUIRE(data.size() == 3);
-
-    std::stringstream ss;
-    for (unsigned int i = 0; i < data.size(); i++)
+    GIVEN("A simple std::vector<char>")
     {
-        ss << std::bitset<2>(data[i]) << ' ';
+        std::vector<char> data{1, 0, 2};
+
+        THEN("The size is correct")
+        {
+            REQUIRE(data.size() == 3);
+        }
+
+        WHEN("Stringifying as binary in std::stringstream")
+        {
+            std::stringstream ss;
+            for (unsigned int i = 0; i < data.size(); i++)
+            {
+                ss << std::bitset<2>(data[i]) << ' ';
+            }
+
+            std::string s = ss.str();
+
+            THEN("The string is written in human readable binary")
+            {
+                REQUIRE(s == "01 00 10 ");
+            }
+        }
     }
-
-    std::string s = ss.str();
-
-    REQUIRE(s == "01 00 10 ");
 }
