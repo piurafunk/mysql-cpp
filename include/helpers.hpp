@@ -5,6 +5,7 @@
 #include <ostream>
 #include <string>
 #include <iomanip>
+#include <vector>
 
 // template <typename Base, typename T>
 // inline bool instanceOf(const T *t)
@@ -60,4 +61,12 @@ inline std::ostream &operator<<(std::ostream &out, const HexString &hexString)
     }
 
     return out;
+}
+
+std::ostream &operator<<(std::ostream &, const std::byte &);
+std::ostream &operator<<(std::ostream &, const std::vector<std::byte> &);
+
+namespace std
+{
+    std::vector<std::byte> to_vector(const std::string &);
 }

@@ -1,7 +1,6 @@
 #pragma once
 
-#include <string>
-#include <sstream>
+#include <vector>
 
 namespace MysqlCpp::Support
 {
@@ -15,15 +14,16 @@ public:
     void write(unsigned int, unsigned int);
     template <unsigned int = 4>
     void write(unsigned int);
-    void write(const std::string, bool = false);
+    void write(const std::vector<std::byte>&, bool = false);
+    void write(std::byte);
     void writeLengthEncoded(unsigned long long);
-    void writeLengthEncoded(std::string, bool = false);
+    void writeLengthEncoded(std::vector<std::byte>, bool = false);
 
-    std::string flush();
-    std::string str() const;
+    void flush();
+    std::vector<std::byte> data() const;
 
 protected:
-    std::stringstream buffer;
+    std::vector<std::byte> buffer;
 };
 
 } // namespace MysqlCpp::Support

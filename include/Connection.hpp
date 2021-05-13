@@ -111,18 +111,24 @@ public:
     std::shared_ptr<MysqlCpp::Responses::Response> showTables();
     std::shared_ptr<MysqlCpp::Responses::Response> createTable(std::string);
 
-    std::string generateSha2AuthResponse(std::string, std::string);
+    std::vector<std::byte> generateCachingSha2AuthResponse(std::string, std::string);
     std::vector<std::byte> rsaEncryptPassword(std::vector<std::byte>, std::string);
+    std::string rsaEncryptPassword(std::string, std::string);
     std::vector<std::byte> rsaDecryptPassword(std::vector<std::byte>, std::string);
+    std::string rsaDecryptPassword(std::string, std::string);
     void setDatabase(std::string);
 
     // Socket access
     const std::vector<char> readPackets();
 
-    // Helper
+    // Configuration
     bool capable(Connection::Capabilities) const;
     void setCapabilities(unsigned int);
     void setCapability(Connection::Capabilities, bool);
+    void addSupportedAuthMethod(std::string);
+    void removeSupportedAuthMethod(std::string);
+    bool supportsAuthMethod(std::string);
+    void setClientAuthMethod(std::string);
     bool hasStatus(Connection::ServerStatus) const;
     void setStatus(unsigned int);
     unsigned int getPhase() const;
@@ -131,7 +137,7 @@ protected:
     bool connected = false;
     std::string hostname;
     unsigned int port;
-    std::string username;
+    std::vector<std::byte> username;
     std::string password;
     std::string database;
     bool sslEnabled;
@@ -148,19 +154,21 @@ protected:
     unsigned int serverCapabilities = 0;
     unsigned int status = 0;
     std::string authPluginData;
-    std::string authResponse = "";
+    std::string serverRequestAuthMethod;
+    std::vector<std::byte> authResponse;
     std::string clientAuthMethod = "caching_sha2_password";
+    std::vector<std::string> supportedAuthMethods = {"sha256_password", "caching_sha2_password"};
 
     int socketHandle;
 
     template <unsigned int = 4>
     const int write(unsigned int);
     template <unsigned long long = 0>
-    const int write(const std::string &, bool = false);
+    const int write(const std::vector<std::byte> &, bool = false);
     const int write(MysqlCpp::Support::Packet, bool = true);
     void flushWriteBuffer();
     void writeLengthEncoded(unsigned long long);
-    void writeLengthEncoded(std::string);
+    void writeLengthEncoded(std::vector<std::byte>);
 };
 
 } // namespace MysqlCpp

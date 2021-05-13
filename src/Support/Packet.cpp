@@ -1,4 +1,5 @@
 #include <MysqlCpp/Support/Packet.hpp>
+#include <MysqlCpp/helpers.hpp>
 
 #include <iostream>
 
@@ -7,7 +8,7 @@ namespace MysqlCpp::Support
 
 Packet::Packet(const Packet &packet)
 {
-    this->buffer << packet.str();
+    this->buffer = packet.data();
 }
 
 // template <unsigned int x>
@@ -16,20 +17,26 @@ void Packet::write(unsigned int data, unsigned int x)
     unsigned int i = 0;
     while (i++ < x)
     {
-        this->buffer << (uint8_t)(0b11111111 & data);
+        this->buffer.push_back(std::byte(data));
 
         data >>= 8;
     }
 }
 
-void Packet::write(const std::string data, bool nullTerminate)
+void Packet::write(const std::vector<std::byte> &data, bool nullTerminate)
 {
-    this->buffer << data;
+    this->buffer.reserve(this->buffer.size() + data.size());
+    this->buffer.insert(this->buffer.end(), data.begin(), data.end());
 
     if (nullTerminate)
     {
         this->write(0, 1);
     }
+}
+
+void Packet::write(std::byte byte)
+{
+    this->buffer.push_back(byte);
 }
 
 void Packet::writeLengthEncoded(unsigned long long data)
@@ -62,22 +69,20 @@ void Packet::writeLengthEncoded(unsigned long long data)
     }
 }
 
-void Packet::writeLengthEncoded(std::string data, bool nullTerminated)
+void Packet::writeLengthEncoded(std::vector<std::byte> data, bool nullTerminated)
 {
-    this->writeLengthEncoded(data.length());
+    this->writeLengthEncoded(data.size());
     this->write(data, nullTerminated);
 }
 
-std::string Packet::flush()
+void Packet::flush()
 {
-    std::string temp = this->buffer.str();
-    this->buffer.str("");
-    return temp;
+    this->buffer.resize(0);
 }
 
-std::string Packet::str() const
+std::vector<std::byte> Packet::data() const
 {
-    return this->buffer.str();
+    return this->buffer;
 }
 
 } // namespace MysqlCpp::Support

@@ -44,7 +44,8 @@ Connection::Connection(std::string hostname, unsigned int port, std::string user
 {
     this->hostname = hostname;
     this->port = port;
-    this->username = username;
+    this->username.reserve(username.length());
+    std::for_each(username.begin(), username.end(), [this](char c) { this->username.push_back(std::byte(c)); });
     this->password = password;
     this->sslEnabled = sslEnabled;
 }
@@ -122,7 +123,6 @@ std::shared_ptr<Response> Connection::connect()
         {
             std::cout << "Name: " << authSwitchRequestResponse->getPluginName() << std::endl
                       << "Data: " << authSwitchRequestResponse->getPluginData() << std::endl;
-
             return authSwitchRequestResponse;
         }
 
@@ -159,8 +159,22 @@ std::shared_ptr<Response> Connection::connect()
                 // Extract the public key from the response
                 std::string publicKey = authMoreData->getData();
 
+                // Create a new packet and send the RSA encrypted password back to the server
+                std::vector<std::byte> textToEncrypt;
+                for (unsigned int i = 0; i <= this->password.length(); i++) // We use <= to XOR in the trailing NULL character
+                {
+                    // XOR the scramble and the password to start the hashing
+                    // Modulus division when accessing this->authPluginData to ensure we don't access beyond the length of the plugin data
+                    textToEncrypt.push_back(std::byte(this->password[i] ^ this->authPluginData[i % this->authPluginData.length()]));
+                }
+                Packet rsaResponsePacket;
+                std::vector<std::byte> encrypted = this->rsaEncryptPassword(textToEncrypt, publicKey);
+                rsaResponsePacket.write(encrypted);
+                this->write(rsaResponsePacket);
 
-                break;
+                this->parser = std::make_shared<BufferParser>(this->readPackets());
+                this->sequenceId = 0;
+                return Response::build(*this->parser, this);
             }
             default:
             {
@@ -250,7 +264,7 @@ void Connection::receiveInitialHandshake()
 
     if (this->capable(Connection::Capabilities::CLIENT_PLUGIN_AUTH))
     {
-        auto authPluginName = this->parser->string<0>();
+        this->serverRequestAuthMethod = this->parser->string<0>();
     }
 }
 
@@ -262,7 +276,7 @@ void Connection::sendSslRequest()
         packet.write(this->clientCapabilities & this->serverCapabilities, 4); // Capabilities flags
         packet.write(0xFFFFFFFF, 4);                                          // Max packet size (1's all the way through)
         packet.write(this->characterSet, 1);                                  // Character set
-        packet.write(std::string(23, 0));                                     // 23 character filler (0's all the way through)
+        packet.write(std::to_vector(std::string(23, 0)));                     // 23 character filler (0's all the way through)
     }
     else
     {
@@ -319,12 +333,12 @@ void Connection::sendHandshakeResponse()
     packet.write(this->clientCapabilities & this->serverCapabilities, 4); // Capabilities
     packet.write(0xFFFFFFFF, 4);                                          // Max packet size
     packet.write(this->characterSet, 1);
-    packet.write(std::string(23, 0)); // Filler, all 0's
-    packet.write(this->username, true);
+    packet.write(std::to_vector(std::string(23, 0))); // Filler, all 0's
+    packet.write(this->username, true); // Null terminate username
 
-    if (this->clientAuthMethod == "caching_sha2_password" && this->password.length() > 0 && this->authResponse.size() == 0)
+    if (this->clientAuthMethod == "caching_sha2_password" && this->password.length() > 0 && this->authResponse.size() == 0 && this->supportsAuthMethod(this->serverRequestAuthMethod))
     {
-        this->authResponse = this->generateSha2AuthResponse(this->password, this->authPluginData);
+        this->authResponse = this->generateCachingSha2AuthResponse(this->password, this->authPluginData);
     }
 
     // Auth response, usually the caching_sha2_password response
@@ -334,18 +348,18 @@ void Connection::sendHandshakeResponse()
     }
     else
     {
-        packet.write(this->authResponse.length(), 1); // Write length of auth response as int<1>
+        packet.write(this->authResponse.size(), 1); // Write length of auth response as int<1>
         packet.write(this->authResponse); // Write auth response
     }
 
     if (this->capable(Connection::Capabilities::CLIENT_CONNECT_WITH_DB))
     {
-        packet.write(this->database, true);
+        packet.write(std::to_vector(this->database), true);
     }
 
     if (this->capable(Connection::Capabilities::CLIENT_PLUGIN_AUTH))
     {
-        packet.write(this->clientAuthMethod, true);
+        packet.write(std::to_vector(this->clientAuthMethod), true);
     }
 
     if (this->capable(Connection::Capabilities::CLIENT_CONNECT_ATTRS))
@@ -363,7 +377,7 @@ std::shared_ptr<Response> Connection::query(const std::string &query)
 {
     Packet packet;
     packet.write(Connection::ServerCommands::QUERY, 1);
-    packet.write(query);
+    packet.write(std::to_vector(query));
     this->write(packet);
 
     this->parser = std::make_shared<BufferParser>(this->readPackets());
@@ -375,7 +389,7 @@ std::shared_ptr<Response> Connection::selectDatabase(const std::string &database
 {
     Packet packet;
     packet.write(Connection::ServerCommands::INIT_DB, 1);
-    packet.write(database);
+    packet.write(std::to_vector(database));
     this->write(packet);
 
     this->parser = std::make_shared<BufferParser>(this->readPackets());
@@ -403,7 +417,7 @@ std::shared_ptr<Response> Connection::showTables()
 {
     Packet packet;
     packet.write(Connection::ServerCommands::QUERY, 1);
-    packet.write("SHOW TABLES");
+    packet.write(std::to_vector("SHOW TABLES"));
     this->write(packet);
 
     this->parser = std::make_shared<BufferParser>(this->readPackets());
@@ -416,7 +430,7 @@ std::shared_ptr<Response> Connection::createTable(std::string table)
 {
     Packet packet;
     packet.write(Connection::ServerCommands::QUERY, 1);
-    packet.write(std::string("CREATE TABLE ").append(table).append(" (id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT, CONSTRAINT PRIMARY KEY (id))"));
+    packet.write(std::to_vector(std::string("CREATE TABLE ").append(table).append(" (id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT, CONSTRAINT PRIMARY KEY (id))")));
     this->write(packet);
 
     BufferParser parser(this->readPackets());
@@ -439,12 +453,37 @@ void Connection::setCapability(Connection::Capabilities capability, bool capable
     this->serverCapabilities |= capable ? capability : ~capability;
 }
 
+void Connection::addSupportedAuthMethod(std::string authMethod)
+{
+    if (this->supportsAuthMethod(authMethod)) {
+        return;
+    }
+
+    this->supportedAuthMethods.push_back(authMethod);
+}
+
+void Connection::removeSupportedAuthMethod(std::string authMethod)
+{
+    std::remove(this->supportedAuthMethods.begin(), this->supportedAuthMethods.end(), authMethod);
+}
+
+bool Connection::supportsAuthMethod(std::string authMethod)
+{
+    return std::find(this->supportedAuthMethods.begin(), this->supportedAuthMethods.end(), authMethod) != this->supportedAuthMethods.end();
+}
+
+void Connection::setClientAuthMethod(std::string authMethod)
+{
+    this->clientAuthMethod = authMethod;
+}
+
+
 bool Connection::hasStatus(Connection::ServerStatus serverStatus) const
 {
     return (this->status & serverStatus) > 0;
 }
 
-std::string Connection::generateSha2AuthResponse(std::string password, std::string salt)
+std::vector<std::byte> Connection::generateCachingSha2AuthResponse(std::string password, std::string salt)
 {
     if (salt.length() != SALT_LENGTH)
     {
@@ -521,14 +560,20 @@ std::string Connection::generateSha2AuthResponse(std::string password, std::stri
         result[i] = digest3[i] ^ digest1[i];
     }
 
-    return std::string((char *)result, SHA256_DIGEST_LENGTH);
+    std::vector<std::byte> resultVector;
+    resultVector.reserve(SHA256_DIGEST_LENGTH);
+    for (unsigned int i = 0; i < SHA256_DIGEST_LENGTH; i++)
+    {
+        resultVector.push_back(std::byte(result[i]));
+    }
+
+    return resultVector;
 }
 
 std::vector<std::byte> Connection::rsaEncryptPassword(std::vector<std::byte> password, std::string publicKey)
 {
     // Set up the RSA structs
-    std::vector<std::byte> encryptedPassword;
-    RSA *rsa = nullptr;
+    RSA *rsa;
 
     BIO *keyBio  = BIO_new_mem_buf(publicKey.c_str(), publicKey.length());
     if (keyBio == nullptr)
@@ -538,23 +583,36 @@ std::vector<std::byte> Connection::rsaEncryptPassword(std::vector<std::byte> pas
     }
 
     // Load the RSA structure
-    rsa = PEM_read_bio_RSA_PUBKEY(keyBio, &rsa, NULL, NULL);
+    rsa = PEM_read_bio_RSA_PUBKEY(keyBio, NULL, NULL, NULL);
     if (rsa == nullptr)
     {
         ERR_print_errors_fp(stderr);
         throw "Failed to read RSA public key";
     }
 
-    int size = RSA_size(rsa);
-    encryptedPassword.resize(size);
+    std::vector<std::byte> encryptedPassword(RSA_size(rsa));
     // Encrypt the password
-    RSA_public_encrypt(password.size(), reinterpret_cast<unsigned char*>(password.data()), reinterpret_cast<unsigned char*>(encryptedPassword.data()), rsa, RSA_PKCS1_OAEP_PADDING);
+    auto encryptedLength = RSA_public_encrypt(password.size(), (unsigned char*)password.data(), (unsigned char*)encryptedPassword.data(), rsa, RSA_PKCS1_OAEP_PADDING);
+    if (encryptedLength < 0) {
+        throw "Failed to encrypt";
+    }
 
     // Free up the RSA structs
     RSA_free(rsa);
     BIO_free(keyBio);
 
     return encryptedPassword;
+}
+
+std::string Connection::rsaEncryptPassword(std::string string, std::string publicKey)
+{
+    std::vector<std::byte> stringToEncrypt(string.size() + 1);
+    std::transform(string.begin(), string.end(), stringToEncrypt.begin(), [](char c) { return std::byte(c); });
+    auto encrypted = this->rsaEncryptPassword(stringToEncrypt, publicKey);
+
+    std::string encryptedString(encrypted.size(), 0);
+    std::transform(encrypted.begin(), encrypted.end(), encryptedString.begin(), [](std::byte b) { return (char)b; });
+    return encryptedString;
 }
 
 std::vector<std::byte> Connection::rsaDecryptPassword(std::vector<std::byte> string, std::string privateKey)
@@ -591,6 +649,17 @@ std::vector<std::byte> Connection::rsaDecryptPassword(std::vector<std::byte> str
     BIO_free(keyBio);
 
     return decrypted;
+}
+
+std::string Connection::rsaDecryptPassword(std::string encrypted, std::string privateKey)
+{
+    std::vector<std::byte> stringToDecrypt(encrypted.size());
+    std::transform(encrypted.begin(), encrypted.end(), stringToDecrypt.begin(), [](char c) { return std::byte(c); });
+    auto decrypted = this->rsaDecryptPassword(stringToDecrypt, privateKey);
+
+    std::string decryptedString;
+    std::transform(decrypted.begin(), decrypted.end(), decryptedString.begin(), [](std::byte b) { return (char)b; });
+    return decryptedString;
 }
 
 void Connection::setStatus(unsigned int status)
@@ -659,27 +728,25 @@ const int Connection::write(unsigned int data)
 }
 
 template <unsigned long long x>
-const int Connection::write(const std::string &data, bool nullTerminate)
+const int Connection::write(const std::vector<std::byte> &data, bool nullTerminate)
 {
-    unsigned long long length = x == 0 ? data.length() : x;
+    unsigned long long length = (x == 0 ? data.size() : x);
 
-    for (unsigned int i = 0; i < length; i++)
-    {
-        this->write<1>(data[i]);
-    }
+    std::for_each(data.begin(), data.begin() + length, [this](std::byte b) { this->write<1>((unsigned int)b); });
 
     if (nullTerminate)
     {
         this->write<1>(0);
     }
 
-    return x;
+    return length;
 }
 
 const int Connection::write(Packet packet, bool resetSequenceId)
 {
-    std::string payload = packet.flush();
-    unsigned int payloadLength = payload.length();
+    std::vector<std::byte> payload = packet.data();
+    packet.flush();
+    unsigned int payloadLength = payload.size();
     unsigned int packetsWritten = 0;
     unsigned int bytesWritten = 0;
 
@@ -690,8 +757,8 @@ const int Connection::write(Packet packet, bool resetSequenceId)
         bytesWritten += this->write<16777215U>(payload);
         this->flushWriteBuffer();
         packetsWritten++;
-        payload = payload.substr(16777215U);
-        payloadLength = payload.length();
+        payload.erase(payload.begin(), payload.begin() + 16777215U);
+        payloadLength = payload.size();
     }
 
     bytesWritten += this->write<3>(payloadLength);
@@ -709,9 +776,15 @@ const int Connection::write(Packet packet, bool resetSequenceId)
 
 void Connection::flushWriteBuffer()
 {
+    char *data = new char[this->writeBuffer.size()];
+    for (unsigned int i = 0; i < this->writeBuffer.size(); i++)
+    {
+        data[i] = (char)this->writeBuffer[i];
+    }
+
     this->ssl == NULL
-        ? ::send(this->socketHandle, &this->writeBuffer.at(0), this->writeBuffer.size(), 0)
-        : SSL_write(this->ssl, &this->writeBuffer.at(0), this->writeBuffer.size());
+        ? ::send(this->socketHandle, data, this->writeBuffer.size(), 0)
+        : SSL_write(this->ssl, data, this->writeBuffer.size());
 
     this->writeBuffer.clear();
 }
@@ -746,9 +819,9 @@ void Connection::writeLengthEncoded(unsigned long long data)
     }
 }
 
-void Connection::writeLengthEncoded(std::string data)
+void Connection::writeLengthEncoded(std::vector<std::byte> data)
 {
-    this->writeLengthEncoded(data.length());
+    this->writeLengthEncoded(data.size());
     this->write(data);
 }
 
