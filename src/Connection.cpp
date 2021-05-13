@@ -429,6 +429,16 @@ bool Connection::capable(Connection::Capabilities capability) const
     return ((this->serverCapabilities & capability) & (this->clientCapabilities & capability)) > 0;
 }
 
+void Connection::setCapabilities(unsigned int capabilities)
+{
+    this->serverCapabilities = capabilities;
+}
+
+void Connection::setCapability(Connection::Capabilities capability, bool capable)
+{
+    this->serverCapabilities |= capable ? capability : ~capability;
+}
+
 bool Connection::hasStatus(Connection::ServerStatus serverStatus) const
 {
     return (this->status & serverStatus) > 0;

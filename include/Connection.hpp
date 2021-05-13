@@ -35,7 +35,7 @@ public:
         CLIENT_LOCAL_FILES = 1UL << 7,
         CLIENT_IGNORE_SPACE = 1UL << 8,
         CLIENT_PROTOCOL_41 = 1UL << 9,
-        CLIENIT_INTERACTIVE = 1UL << 10,
+        CLIENT_INTERACTIVE = 1UL << 10,
         CLIENT_SSL = 1UL << 11,
         CLIENT_IGNORE_SIGPIPE = 1UL << 12,
         CLIENT_TRANSACTIONS = 1UL << 13,
@@ -47,7 +47,7 @@ public:
         CLIENT_PLUGIN_AUTH = 1UL << 19,
         CLIENT_CONNECT_ATTRS = 1UL << 20,
         CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA = 1UL << 21,
-        CLIENIT_CAN_HANDLE_EXPIRED_PASSWORDS = 1UL << 22,
+        CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS = 1UL << 22,
         CLIENT_SESSION_TRACK = 1UL << 23,
         CLIENT_DEPRECATE_EOF = 1UL << 24,
         CLIENT_OPTIONAL_RESULTSET_METADATA = 1UL << 25,
@@ -121,6 +121,8 @@ public:
 
     // Helper
     bool capable(Connection::Capabilities) const;
+    void setCapabilities(unsigned int);
+    void setCapability(Connection::Capabilities, bool);
     bool hasStatus(Connection::ServerStatus) const;
     void setStatus(unsigned int);
     unsigned int getPhase() const;
