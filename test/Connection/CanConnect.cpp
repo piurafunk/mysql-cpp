@@ -71,7 +71,7 @@ SCENARIO("Connector can communicate", "[connection]")
                 REQUIRE(::instanceOf<MysqlCpp::Responses::ResultSet>(showTablesResponse) == true);
             }
 
-            auto resultSet = dynamic_pointer_cast<MysqlCpp::Responses::ResultSet>(showTablesResponse);
+            auto resultSet = std::dynamic_pointer_cast<MysqlCpp::Responses::ResultSet>(showTablesResponse);
 
             THEN("The result set has 0 rows")
             {

@@ -1,38 +1,41 @@
-FROM    piurafunk/utility-git as watchman-src
+FROM    alpine as git
+RUN     apk add --no-cache git
+
+FROM    git as watchman-src
 RUN     git clone --depth 1 --branch v4.9.0 https://github.com/facebook/watchman.git /watchman
 
 FROM    ubuntu:20.04 as watchman-build
 ENV     DEBIAN_FRONTEND=noninteractive
 COPY    --from=watchman-src /watchman /watchman
 RUN     apt-get update && apt-get install -y \
-                autoconf \
-                automake \
-                g++ \
-                libssl-dev \
-                libtool \
-                make \
-                openjdk-8-jre-headless \
-                pkg-config \
-                python2.7-dev \
-                python-setuptools
+        autoconf \
+        automake \
+        g++ \
+        libssl-dev \
+        libtool \
+        make \
+        openjdk-8-jre-headless \
+        pkg-config \
+        python2.7-dev \
+        python-setuptools
 RUN     cd /watchman && ./autogen.sh && ./configure --enable-lenient && make -j `nproc` && make install
 
-FROM    piurafunk/utility-git as buck-src
+FROM    git as buck-src
 RUN     git clone --depth 1 https://github.com/facebook/buck.git -b v2019.01.10.01 /buck
 
 FROM    ubuntu:20.04 as buck-build
 ENV     DEBIAN_FRONTEND=noninteractive
 RUN     apt-get update && apt-get install -y \
-                ant \
-                git \
-                openjdk-8-jdk-headless \
-                python2.7 && \
+        ant \
+        git \
+        openjdk-8-jdk-headless \
+        python2.7 && \
         apt-get purge -y openjdk-11-jre-headless && \
         ln -s /usr/bin/python2.7 /usr/bin/python
 COPY    --from=buck-src /buck /buck
 RUN     cd /buck && ant && ./bin/buck build --show-output buck && cp buck-out/gen/programs/buck.pex /bin/buck
 
-FROM    piurafunk/utility-git as buckaroo-src
+FROM    git as buckaroo-src
 RUN     git clone https://github.com/LoopPerfect/buckaroo.git /buckaroo && cd /buckaroo && git checkout f95792c47b3f4e6b4ed9ca121071422c88498908
 
 FROM    mcr.microsoft.com/dotnet/sdk:5.0 as buckaroo-build
@@ -45,21 +48,21 @@ FROM    ubuntu:20.04 as build
 
 ENV     DEBIAN_FRONTEND=noninteractive
 RUN     apt-get update && apt-get install -y \
-## Setup for general use
-                gdbserver \
-                jq \
-## Setup for Watchman
-                python2.7 \
-## Setup for Buckaroo
-                git \
-## Setup for Buck
-                openjdk-8-jre-headless \
-## Install for code coverage tools
-                lcov \
-## Project specific things. TODO: Move this into separate Docker image and extend from it.
-                g++ \
-                make && \
-	rm -rf /var/lib/apt/lists/*
+        ## Setup for general use
+        gdbserver \
+        jq \
+        ## Setup for Watchman
+        python2.7 \
+        ## Setup for Buckaroo
+        git \
+        ## Setup for Buck
+        openjdk-8-jre-headless \
+        ## Install for code coverage tools
+        lcov \
+        ## Project specific things. TODO: Move this into separate Docker image and extend from it.
+        g++ \
+        make && \
+        rm -rf /var/lib/apt/lists/*
 
 ## Install Watchman
 COPY    --from=watchman-build /usr/local/bin/watchman* /usr/local/bin

@@ -4,6 +4,7 @@ buck-out
 .buckconfig.d
 buckaroo
 buckaroo_macros.bzl
+.conan2
 
 # Code coverage files
 *.gcda
@@ -12,3 +13,7 @@ buckaroo_macros.bzl
 # Dunno why these file exist
 # Pretty sure this is related to the MS C++ extension. No hard evidence though
 null.d
+
+# Conan package manager
+**/*conanbuild*
+**/*conanrun*

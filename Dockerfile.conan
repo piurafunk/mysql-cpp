@@ -1,0 +1,27 @@
+FROM ubuntu:22.04 as build
+
+ENV RUSTUP_HOME=/opt/.rustup
+ENV CARGO_HOME=/opt/.cargo
+ENV CONAN_HOME=/app/.conan2
+ENV PATH=/opt/.cargo/bin:/opt/venv/conan/bin:$PATH
+
+RUN apt update && \
+    apt install -y \
+    clang \
+    curl \
+    g++ \
+    git \
+    lld \
+    make \
+    python3-pip \
+    python3-venv \
+    && \
+    apt-get clean
+
+# https://buck2.build/docs/getting_started/
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+RUN rustup install nightly-2023-05-28
+RUN cargo +nightly-2023-05-28 install --git https://github.com/facebook/buck2.git buck2
+
+# https://docs.conan.io/2/installation.html
+RUN python3 -m venv /opt/venv/conan && . /opt/venv/conan/bin/activate && pip install conan && deactivate

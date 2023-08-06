@@ -1,85 +1,37 @@
-load('//:buckaroo_macros.bzl', 'buckaroo_deps')
-
-prebuilt_cxx_library(
-  name = 'pthread',
-  header_only = True,
-  exported_linker_flags = [
-    '-lpthread'
-  ]
-)
+load("subdir_glob.bzl", "subdir_glob")
 
 cxx_library(
-  name = 'mysql-cpp', 
-  header_namespace = 'MysqlCpp', 
-  exported_headers = subdir_glob([
-    ('include', '**/*.hpp'),
-    ('include', '**/*.h'),
-  ]), 
-  headers = subdir_glob([
-    ('private_include', '**/*.hpp'),
-    ('private_include', '**/*.h'),
-  ]),
-  srcs = glob([
-    'src/**/*.cpp',
-  ]),
-  deps = buckaroo_deps() + [
-    '//:pthread',
+    name = "mysql-cpp",
+    compiler_flags = [
+        '-std=c++2a',
     ],
-  visibility = [
-    'PUBLIC', 
-  ],
-  compiler_flags = [
-    '-ggdb',
-    '-O0',
-    '-fprofile-arcs',
-    '-ftest-coverage',
-    '-fPIC',
-  ],
-  linker_flags = [
-    '-lgcov',
-    '--coverage',
-  ],
+    header_namespace = "MysqlCpp",
+    exported_headers = subdir_glob([
+        ("include", "**/*.h"),
+        ("include", "**/*.hpp"),
+    ]),
+    headers = subdir_glob([
+      ('private_include', '**/*.hpp'),
+      ('private_include', '**/*.h'),
+    ]),
+    srcs = glob([
+        "src/**/*.c",
+        "src/**/*.cpp",
+    ]),
+    link_style = "static",
+    exported_deps = [
+        "//.conan2/p/opens82d4fa30da96c/p:openssl",
+        "//.conan2/p/zlib10e4879147c91/p:zlib",
+        "//.conan2/p/catch95371a689a8ee/p:catch2",
+    ],
 )
 
 cxx_binary(
-  name = 'app', 
-  srcs = [
-    'main.cpp', 
-  ], 
-  deps = [
-    '//:mysql-cpp',
-  ],
-  compiler_flags = [
-    '-ggdb'
-  ]
-)
-
-# Tests
-cxx_binary(
-  name = 'test',
-  srcs = glob([
-    'test/**/*.cpp',
-  ]),
-  deps = [
-    '//:mysql-cpp',
-  ],
-  compiler_flags = [
-    '-ggdb',
-    '-O0',
-    '-fprofile-arcs',
-    '-ftest-coverage',
-    '-fPIC',
-  ],
-  linker_flags = [
-    '-lgcov',
-    '--coverage',
-  ],
-)
-
-# Compilation commands
-
-genrule(
-  name = "compilation-commands",
-  bash = "cat $(location :test#compilation-database) $(location :mysql-cpp#compilation-database) | jq -s add > $OUT",
-  out = "compile_commands.json",
+    name = 'test',
+    srcs = glob([
+        'test/**/*.cpp',
+    ]),
+    deps = [
+        ':mysql-cpp',
+    ],
 )
