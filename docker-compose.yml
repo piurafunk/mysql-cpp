@@ -16,5 +16,8 @@ services:
       MYSQL_USER: user
       MYSQL_PASSWORD: password
       MYSQL_RANDOM_ROOT_PASSWORD: true
-    ports:
-      - 3306:3306
+    volumes:
+      - type: tmpfs
+        target: /app
+        tmpfs:
+          size: 1GB
